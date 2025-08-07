@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Guess the Rule</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'uva-blue': '#232D4B',
+              'uva-orange': '#E57200',
+              'rotunda-tan': '#DAD5C9',
+              'jefferson-blue': '#007BAC',
+              'uva-white': '#FFFFFF',
+            },
+            fontFamily: {
+              sans: ['"Franklin Gothic"', 'Arial', 'sans-serif'],
+              serif: ['"Georgia"', 'serif']
+            }
+          }
+        }
+      }
+    </script>
+    <!-- React Libraries -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- Babel to transpile JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
+  <body class="bg-rotunda-tan">
+    <div id="root"></div>
+    <script type="text/babel">
+      const { useState, useCallback, useMemo, useRef } = React;
+
+      const CheckIcon = ({ className = 'w-6 h-6' }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      );
+
+      const XIcon = ({ className = 'w-6 h-6' }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      );
+
+      const UvaHeader = () => (
+        <header className="bg-uva-blue shadow-lg">
+          <div className="container mx-auto max-w-5xl px-4 py-4 md:px-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-uva-white tracking-wide">
+              Guess the Rule
+            </h1>
+            <p className="text-sm text-rotunda-tan mt-1">A Puzzle for Problem Solving</p>
+          </div>
+        </header>
+      );
+
+      const App = () => {
+        const [view, setView] = useState('testing');
+        const initialGuess = useMemo(() => ({ sequence: [2, 4, 8], fitsRule: true }), []);
+        const [guesses, setGuesses] = useState([initialGuess]);
+        const [inputs, setInputs] = useState(['', '', '']);
+        const [error, setError] = useState(null);
+        const [copySuccess, setCopySuccess] = useState('');
+
+        const inputRefs = [
+          useRef(null),
+          useRef(null),
+          useRef(null),
+        ];
+
+        const checkRule = useCallback((n1, n2, n3) => {
+          return n1 < n2 && n2 < n3;
+        }, []);
+        
+        const summaryText = useMemo(() => {
+          const header = "My 'Guess the Rule' Summary:\n\n";
+          const guessLines = guesses.map(guess => 
+              `${guess.sequence.join(', ')}: ${guess.fitsRule ? 'Fits the Rule' : 'Did Not Fit the Rule'}`
+          ).join('\n');
+          const footer = `\n\nTotal Guesses: ${guesses.length}\n\nI am confident the rule is: [Please type the rule here]`;
+          return header + guessLines + footer;
+        }, [guesses]);
+        
+        const handleCopy = () => {
+          if (navigator.clipboard) {
+              navigator.clipboard.writeText(summaryText).then(() => {
+                  setCopySuccess('Copied!');
+                  setTimeout(() => setCopySuccess(''), 2000);
+              }, () => {
+                  setCopySuccess('Failed to copy.');
+                  setTimeout(() => setCopySuccess(''), 2000);
+              });
+          }
+        };
+
+        const handleInputChange = (index, value) => {
+          if (/^-?\d*$/.test(value)) {
+            const newInputs = [...inputs];
+            newInputs[index] = value;
+            setInputs(newInputs);
+            setError(null);
+          }
+        };
+
+        const handleKeyDown = (e, index) => {
+          if (e.key === 'Enter') {
+            if (index < 2) {
+              e.preventDefault();
+              inputRefs[index + 1].current?.focus();
+            }
+          }
+        };
+
+        const handleSubmitGuess = (e) => {
+          e.preventDefault();
+          if (inputs.some(val => val === '' || val === '-')) {
+            setError('Please enter three valid numbers.');
+            return;
+          }
+          const numericSequence = inputs.map(Number);
+          if (numericSequence.some(isNaN)) {
+              setError('Please ensure all inputs are valid numbers.');
+              return;
+          }
+
+          const newGuess = {
+            sequence: numericSequence,
+            fitsRule: checkRule(...numericSequence),
+          };
+
+          setGuesses(prevGuesses => [...prevGuesses, newGuess]);
+          setInputs(['', '', '']);
+          setError(null);
+          inputRefs[0].current?.focus();
+        };
+        
+        const handleStartOver = () => {
+          setGuesses([initialGuess]);
+          setInputs(['', '', '']);
+          setError(null);
+          setView('testing');
+          setCopySuccess('');
+        };
+
+        return (
+          <div className="min-h-screen font-sans text-uva-blue">
+            <UvaHeader />
+            <main className="container mx-auto p-4 md:p-8 max-w-3xl">
+              <div className="bg-uva-white rounded-lg shadow-xl p-6 md:p-8">
+                {view === 'testing' ? (
+                  <div className="animate-fade-in">
+                    <h2 className="text-2xl font-bold mb-2">Test Your Hypothesis</h2>
+                    <p className="mb-4 text-gray-700">
+                      Let’s kick off this module with a quick challenge that offers insight into how we, as humans, search for information in the world.
+                    </p>
+                    <p className="mb-4 text-gray-700">
+                      A computer has a secret rule for sequences of three numbers.
+                      Your goal is to figure out the rule. The sequence <strong className="font-semibold">2, 4, 8</strong> fits the rule.
+                    </p>
+                    <p className="mb-6 text-gray-700">
+                      You should test sequences until you are <strong className="font-bold underline">very confident</strong> you know the rule and can clearly explain it to your peers.
+                    </p>
+
+                    <div className="mb-6">
+                      <h3 className="text-xl font-semibold mb-3">Your Guesses</h3>
+                      <div className="space-y-3 max-h-60 overflow-y-auto pr-2 border-l-4 border-rotunda-tan pl-4">
+                        {guesses.map((guess, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 rounded-md bg-gray-50">
+                            <span className="text-lg font-mono tracking-wider text-gray-800">
+                              {guess.sequence.join(', ')}
+                            </span>
+                            {guess.fitsRule ? (
+                              <div className="flex items-center space-x-2 text-green-600">
+                                <CheckIcon className="w-5 h-5"/>
+                                <span className="font-semibold text-sm">Yes</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center space-x-2 text-red-600">
+                                <XIcon className="w-5 h-5"/>
+                                <span className="font-semibold text-sm">No</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <form onSubmit={handleSubmitGuess} className="mb-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        {inputs.map((value, index) => (
+                          <div key={index}>
+                            <label htmlFor={`guess-input-${index}`} className="sr-only">Number {index + 1}</label>
+                            <input
+                              ref={inputRefs[index]}
+                              id={`guess-input-${index}`}
+                              type="text"
+                              inputMode="numeric"
+                              value={value}
+                              onChange={(e) => handleInputChange(index, e.target.value)}
+                              onKeyDown={(e) => handleKeyDown(e, index)}
+                              placeholder={`Number ${index + 1}`}
+                              className="w-full p-3 text-center text-lg text-uva-blue bg-transparent border-2 border-gray-600 rounded-md focus:ring-2 focus:ring-uva-orange focus:border-uva-orange outline-none transition"
+                              autoComplete="off"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      {error && <p className="text-red-600 text-center mb-4">{error}</p>}
+                      <button type="submit" className="w-full bg-uva-orange text-uva-white font-bold py-3 px-4 rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-uva-orange transition-transform transform hover:scale-105">
+                        Submit Guess
+                      </button>
+                    </form>
+
+                    <div className="text-center border-t border-rotunda-tan pt-6">
+                      <button 
+                        onClick={() => setView('summary')}
+                        className="w-full md:w-auto bg-uva-blue text-uva-white font-bold py-3 px-8 rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-uva-blue transition-transform transform hover:scale-105">
+                        I Know The Rule
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="animate-fade-in">
+                    <h2 className="text-2xl font-bold mb-4">Summary of Your Guesses</h2>
+                    <div className="space-y-2 mb-6">
+                      {guesses.map((guess, index) => (
+                          <div key={index} className={`p-3 rounded-md text-uva-white font-semibold flex justify-between items-center ${guess.fitsRule ? 'bg-uva-blue' : 'bg-uva-orange'}`}>
+                            <span className="font-mono tracking-wider">{guess.sequence.join(', ')}</span>
+                            <span>{guess.fitsRule ? 'Fits' : 'Doesn’t Fit'}</span>
+                          </div>
+                      ))}
+                    </div>
+                    <div className="text-center bg-rotunda-tan p-4 rounded-md mb-6">
+                      <p className="text-xl font-bold text-uva-blue">
+                        Total Guesses: {guesses.length}
+                      </p>
+                    </div>
+                    <div className="bg-gray-100 p-4 rounded-md border-l-4 border-jefferson-blue space-y-3">
+                      <h3 className="text-lg font-bold text-uva-blue mb-2">Share Your Results</h3>
+                      <p className="text-gray-800">
+                          Copy your results below and paste them into this week's discussion board. You'll need to post before you can see your peers' responses. Don't forget to add what you think the rule is!
+                      </p>
+                      <textarea
+                          readOnly
+                          className="w-full h-48 p-3 border border-gray-300 rounded-md bg-white font-mono text-sm text-gray-800 focus:ring-2 focus:ring-uva-orange focus:outline-none"
+                          value={summaryText}
+                          aria-label="Summary of your guesses to be copied"
+                          onClick={(e) => e.target.select()}
+                      />
+                      <button
+                          onClick={handleCopy}
+                          className="w-full bg-uva-orange text-uva-white font-bold py-2 px-4 rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-uva-orange transition"
+                        >
+                          {copySuccess || 'Copy to Clipboard'}
+                        </button>
+                    </div>
+                    <div className="text-center border-t border-rotunda-tan pt-6 mt-6">
+                      <button 
+                        onClick={handleStartOver}
+                        className="w-full md:w-auto bg-uva-blue text-uva-white font-bold py-3 px-8 rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-uva-blue transition">
+                        Start Over
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <footer className="text-center text-sm text-gray-500 mt-6 space-y-2">
+                <p>Inspired by the New York Times interactive puzzle.</p>
+                <p>This experiment is a version of one that the English psychologist Peter Cathcart Wason used in a seminal 1960 paper.</p>
+              </footer>
+            </main>
+          </div>
+        );
+      };
+
+      const rootElement = document.getElementById('root');
+      if (rootElement) {
+        const root = ReactDOM.createRoot(rootElement);
+        root.render(<React.StrictMode><App /></React.StrictMode>);
+      }
+    </script>
+  </body>
+</html>
